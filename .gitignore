@@ -1,0 +1,4 @@
+notebooks
+DECLARE*
+*.ipynb
+data/*.mat

@@ -1,20 +1,40 @@
 module ShapeModels
 
-export PCAShapeModel, shape, coeffs, clamp, plotshapes
+using MultivariateStats
 
-type PCAShapeModel
+export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes 
+export axisij, plotshape, plotshapes
 
-	aligned
-    mean
-    eigvec
-    eigval
+type PCAShapeModelCoeffs
+	modes
+	rot
+	scale
+	translation
     ndims
-    nlandmarks
 end
 
-include("utils.jl")
+type PCAShapeModel
+	aligned
+	pca
+    ndims
+    nlandmarks
+    center
+    maxtranslation
+end
 
-function PCAShapeModel{T<:Real}(landmarks::Array{T,3}, percentage = 0.95)
+function PCAShapeModelCoeffs(a::PCAShapeModel, x)
+    if a.ndims == 2
+        PCAShapeModelCoeffs(x[1:end-4], x[end-3:end-3], x[end-2], x[end-1:end], a.ndims)
+    else
+        PCAShapeModelCoeffs(x[1:end-6], x[end-5:end-4], x[end-3], x[end-2:end], a.ndims)
+    end
+end
+
+
+include("plotfunctions.jl")
+
+function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.95, center = zeros(size(landmarks,1)), 
+    maxtranslation = Inf*ones(size(landmarks,1)))
     ndims, nlandmarks, nshapes = size(landmarks)
 
     aligned = copy(landmarks)
@@ -38,45 +58,60 @@ function PCAShapeModel{T<:Real}(landmarks::Array{T,3}, percentage = 0.95)
     
 	alignedshapes = aligned
     aligned = reshape(aligned, (ndims*nlandmarks, nshapes))
-    m = mean(aligned, 2)
-    eigvec, eigval = pca(aligned .- m)
-    nmodes = findfirst(cumsum(eigval)/sum(eigval) .>= percentage)
-    PCAShapeModel(alignedshapes, m, eigvec, eigval, ndims, nlandmarks)
-end
+	pca = fit(PCA, aligned, pratio = percentage)
+    PCAShapeModel(alignedshapes, pca, ndims, nlandmarks, center, maxtranslation)
+end                                  
 
 import Base.reshape
-reshape(a::PCAShapeModel, b) = reshape(b, (s.ndims, a.mean/s.ndims, size(b,1))) 
-meanshape(a::PCAShapeModel) = reshape(a, a.mean)
-modes(a::PCAShapeModel, ind = 1:size(a.eigvec,2)) = reshape(a, eigvec[:,ind])
+col(a) = reshape(a, length(a),1)
+row(a) = reshape(a, 1, length(a))
+reshape(a::PCAShapeModel, b) = reshape(b, a.ndims, a.nlandmarks)
+meanshape(a::PCAShapeModel) = shape(a, zeros(nmodes(a)))
 
-# coefficients are 
-#   2D: dm, dn, scale, roto
-#   3D: dm, dn, do, scale, rotm, rotn, roto
-ncoeffs(a::PCAShapeModel) = a.ndims==2 ? 4 : 7
+maxcoeffvec(a::PCAShapeModel) = vcat(
+    3*sqrt(principalvars(a.pca)), 
+    a.ndims == 2 ? 0.3 : [0.3, 0.3, 0.3],
+    0.2,
+    a.maxtranslation)
+mincoeffvec(a::PCAShapeModel) = -maxcoeffvec(a)
 
-column(a::Vector) = reshape(a, (length(a),1))
-rotmartix(a::PCAShapeModel, coeffs::Vector) = rotmatrix(a, column(coeffs))
-rotmartix{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2}) = rotmatrix(coeffs[a.ndims==2 ? 3:4 : 4:7]...)
-rotmatrix(scaling, alpha) = scaling*[cos(alpha) -sin(alpha); sin(alpha) cos(alpha)]
-function rotmatrix(scaling, rotm, rotn, roto) 
+nmodes(a::PCAShapeModel) = outdim(a.pca) + (a.ndims==2 ? 4 : 6)
+
+
+function modeshapes(a::PCAShapeModel, ind, at::Vector = 
+    linspace(mincoeffvec(a)[ind], maxcoeffvec(a)[ind],10))
+
+    assert(ind>0 && ind <= nmodes(a))
+	r = zeros(a.ndims, a.nlandmarks, length(at))
+	for i = 1:length(at)
+    	v = zeros(nmodes(a))
+		v[ind] = at[i]
+		r[:,:,i] = shape(a, v)
+	end
+	r
+end
+
+rotmatrix(coeffs::PCAShapeModelCoeffs) = rotmatrix(coeffs.scale, coeffs.rot...)
+rotmatrix(scale, alpha) = (scale+1)*[cos(alpha) -sin(alpha); sin(alpha) cos(alpha)]
+function rotmatrix(scale, rotm, rotn, roto) 
     Rm = [1 0 0; 0 cos(rotm) -sin(rotm); 0 sin(rotm) cos(rotm)]
     Rn = [cos(rotn) 0 sin(rotn); 0 1 0; -sin(rotn) 0 cos(rotn)]
     Ro = [cos(roto) -sin(roto) 0; sin(roto) cos(roto) 0; 0 0 1]
-    scaling*Rm*Rn*Ro
+    (scale+1)*Rm*Rn*Ro
 end
 
-shape(a::PCAShapeModel, coeffs::Vector) = shape(a, column(coeffs))
-function shape{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
-    r = a.eigvec*coeffs[5:end] .+ a.mean
-    r = reshape(r, (a.ndims, a.nlandmarks, size(coeffs,2)))
-    r = rotmatrix(a, coeffs)*r .+ coeffs[1:a.ndims]
+shape(a::PCAShapeModel, coeffs) = shape(a, PCAShapeModelCoeffs(a, coeffs))
+function shape(a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
+    r = reconstruct(a.pca, coeffs.modes)
+    r = reshape(a, r)
+    rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
 end
 
 function coeffs{T<:Real}(a::PCAShapeModel, coords::Array{T,2})
     # TODO
 end
 
-clamp(a::PCAShapeModel, coeffs::Vector) = clamp(a, column(coeffs))
+clamp(a::PCAShapeModel, coeffs::Vector) = clamp(a, col(coeffs))
 function clamp{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
     r = min()
 end

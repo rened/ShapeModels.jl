@@ -16,6 +16,8 @@ shapes = modeshapes(a,1)  # examples for first eigenmode
 plotshape(meanshape(a),"r.")
 ```
 
+Example computed with outlines of metacarpal bones:
+
 ![](example.png)
 
 ## Functions

@@ -15,7 +15,7 @@ model = PCAShapeModel(landmarks)
 shapes = modeshapes(a,1)  # examples for first eigenmode
 [plotshape(shapes[:,:,i],"b.") for i = 1:10]
 plotshape(meanshape(a),"r.")
-```
+
 ![](example.png)
 
 ## Functions

@@ -1,9 +1,10 @@
 module ShapeModels
 
-using MultivariateStats
+using MultivariateStats, HDF5, FunctionalData, FDUtils
 
 export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes 
 export axisij, plotshape, plotshapes
+export maxcoeffvec, mincoeffvec
 
 type PCAShapeModelCoeffs
 	modes
@@ -111,9 +112,29 @@ function coeffs{T<:Real}(a::PCAShapeModel, coords::Array{T,2})
     # TODO
 end
 
+import Base.clamp
 clamp(a::PCAShapeModel, coeffs::Vector) = clamp(a, col(coeffs))
 function clamp{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
     r = min()
 end
+
+function examplelandmarks(a::Symbol)
+    if a==:hands2d
+        return h5read(joinpath(Pkg.dir("ShapeModels"),"data/2Dlandmarks.hdf5"),"landmarks");
+    else
+        error("unknown dataset '$a'")
+    end
+end
+
+function exampleimages(a::Symbol)
+    if a == :hands2d
+        shapes = examplelandmarks(a)
+        return [inpolygon(at(shapes,i).-mean(at(shapes,i)).+[200 250]',zeros(500,400)) for i in 1:14]
+    else
+        error("unknown dataset '$a'")
+    end
+end
+
+
 
 end # module

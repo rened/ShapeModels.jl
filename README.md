@@ -35,5 +35,5 @@ Helper functions for plotting. They require the `PyPlot` package to be installed
 * `plotshapes(shapes)` plot several shaped in individual subfigures
 
 
-<small><sup>1</sup> T.F. Cootes, D. Cooper, C.J. Taylor and J. Graham, "Active Shape Models - Their Training and Application." Computer Vision and Image Understanding. Vol. 61, No. 1, Jan. 1995, pp. 38-59.</small>
+<sup>1</sup> T.F. Cootes, D. Cooper, C.J. Taylor and J. Graham, "Active Shape Models - Their Training and Application." Computer Vision and Image Understanding. Vol. 61, No. 1, Jan. 1995, pp. 38-59.
 

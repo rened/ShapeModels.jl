@@ -1,6 +1,6 @@
 module ShapeModels
 
-using MultivariateStats, HDF5, FunctionalData, FDUtils
+using MultivariateStats, HDF5, FunctionalDataUtils
 
 export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes 
 export axisij, plotshape, plotshapes

@@ -35,32 +35,45 @@ end
 include("plotfunctions.jl")
 
 function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.95, center = zeros(size(landmarks,1)), 
-    maxtranslation = Inf*ones(size(landmarks,1)))
+    maxtranslation = Inf*ones(size(landmarks,1)), optcoeffs = false)
     ndims, nlandmarks, nshapes = size(landmarks)
 
     aligned = copy(landmarks)
     scales = zeros(nshapes)
-    for i = 1:nshapes
-        aligned[:,:,i] .-= mean(aligned[:,:,i],2)
-        scales[i] = mean(sqrt(sum(aligned[:,:,i].^2,1)))
-    end
-    relativescales = scales / mean(scales)
+    aligned = @p map aligned x->x.-mean_(x)
+    scales = @p map aligned x->@p distance zeros(sizem(aligned),1) x 
+    relativescales = scales ./ mean(scales)
 
+    rotmatrices = Array(Any, nshapes)
+    rotmatrices[1] = eye(ndims)
+    aligned[:,:,1] = aligned[:,:,1] ./= relativescales[1]
     for i = 2:nshapes
         aligned[:,:,i] ./= relativescales[i]
         # https://en.wikipedia.org/wiki/Kabsch_algorithm
         U,E,V = svd(aligned[:,:,1] * aligned[:,:,i]')
         Eprime = eye(length(E))
         Eprime[end] = sign(det(U*V))
-        rotmatrix = V' * Eprime' * U
-        #@show rotmatrix
-        aligned[:,:,i] = rotmatrix * aligned[:,:,i]
+        rotmatrices[i] = V' * Eprime' * U
+        aligned[:,:,i] = rotmatrices[i] * aligned[:,:,i]
     end
     
 	alignedshapes = aligned
     aligned = reshape(aligned, (ndims*nlandmarks, nshapes))
 	pca = fit(PCA, aligned, pratio = percentage)
-    PCAShapeModel(alignedshapes, pca, ndims, nlandmarks, center, maxtranslation)
+
+    model = PCAShapeModel(alignedshapes, pca, ndims, nlandmarks, center, maxtranslation)
+
+    ## compute optimal coeffs for training data
+    if optcoeffs
+        invrot = @p map rotmatrices inv
+        angles = @p map invrot x->asin(x[2,1])
+        modes  = @p transform pca aligned | unstack
+        translations = @p map landmarks mean_ | map minus center | unstack
+        coeffs = @p zip modes angles relativescales-1 translations| collect | map x->PCAShapeModelCoeffs(x[1], x[2], x[3], x[4], ndims)
+        model, coeffs
+    else
+        model
+    end
 end                                  
 
 import Base.reshape

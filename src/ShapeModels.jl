@@ -2,7 +2,7 @@ module ShapeModels
 
 using MultivariateStats, HDF5, FunctionalDataUtils
 
-export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes 
+export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec
 export axisij, plotshape, plotshapes
 export maxcoeffvec, mincoeffvec
 
@@ -30,11 +30,13 @@ function PCAShapeModelCoeffs(a::PCAShapeModel, x)
         PCAShapeModelCoeffs(x[1:end-6], x[end-5:end-4], x[end-3], x[end-2:end], a.ndims)
     end
 end
+import Base.vec
+vec(a::PCAShapeModelCoeffs) = [a.modes; a.rot; a.scale; a.translation]
 
 
 include("plotfunctions.jl")
 
-function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.95, center = zeros(size(landmarks,1)), 
+function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.98, center = zeros(size(landmarks,1)), 
     maxtranslation = Inf*ones(size(landmarks,1)), optcoeffs = false)
     ndims, nlandmarks, nshapes = size(landmarks)
 
@@ -83,7 +85,7 @@ reshape(a::PCAShapeModel, b) = reshape(b, a.ndims, a.nlandmarks)
 meanshape(a::PCAShapeModel) = shape(a, zeros(nmodes(a)))
 
 maxcoeffvec(a::PCAShapeModel) = vcat(
-    3*sqrt(principalvars(a.pca)), 
+    2*sqrt(principalvars(a.pca)), 
     a.ndims == 2 ? 0.3 : [0.3, 0.3, 0.3],
     0.2,
     a.maxtranslation)
@@ -128,7 +130,8 @@ end
 import Base.clamp
 clamp(a::PCAShapeModel, coeffs::Vector) = clamp(a, col(coeffs))
 function clamp{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
-    r = min()
+    # TODO
+    error("write me")
 end
 
 function examplelandmarks(a::Symbol)

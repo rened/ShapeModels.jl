@@ -85,7 +85,7 @@ reshape(a::PCAShapeModel, b) = reshape(b, a.ndims, a.nlandmarks)
 meanshape(a::PCAShapeModel) = shape(a, zeros(nmodes(a)))
 
 maxcoeffvec(a::PCAShapeModel) = vcat(
-    2*sqrt(principalvars(a.pca)), 
+    2.5*sqrt(principalvars(a.pca)), 
     a.ndims == 2 ? 0.3 : [0.3, 0.3, 0.3],
     0.2,
     a.maxtranslation)

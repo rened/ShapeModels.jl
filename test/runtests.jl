@@ -7,14 +7,14 @@ shouldtestcontext(f, a) = length(ARGS) < 2 || a == ARGS[2] ? context(f, a) : not
  
 macro throws_pred(ex) FactCheck.throws_pred(ex) end
 
-landmarks = h5read(joinpath(dirname(@__FILE__()),"../data/2Dlandmarks.hdf5"),"landmarks")
+landmarks = ShapeModels.examplelandmarks()
 
 shouldtest("basic") do
 	a = PCAShapeModel(landmarks)
-	@fact size(projection(a.pca)) => (256,5)
-	@fact size(principalvars(a.pca)) => (5,)
+	@fact size(projection(a.pca)) => (256,8)
+	@fact size(principalvars(a.pca)) => (8,)
 	@fact indim(a.pca) => 256
-	@fact outdim(a.pca) => 5
+	@fact outdim(a.pca) => 8
 end
 
 shouldtest("utils") do
@@ -28,6 +28,9 @@ shouldtest("shape") do
 	a = PCAShapeModel(landmarks)
 
     @fact size(shape(a, zeros(nmodes(a)))) => (2,128)
+    if VERSION.minor == 4
+        @fact size(a(zeros(nmodes(a)))) => (2,128)
+    end
 end
 
 shouldtest("modes") do

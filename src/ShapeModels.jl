@@ -1,12 +1,12 @@
 module ShapeModels
 
-using MultivariateStats, HDF5, FunctionalDataUtils
+using MultivariateStats, HDF5, FunctionalDataUtils, DictFiles
 
 export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec
 export axisij, plotshape, plotshapes
 export maxcoeffvec, mincoeffvec
 
-type PCAShapeModelCoeffs
+immutable PCAShapeModelCoeffs
 	modes
 	rot
 	scale
@@ -21,6 +21,7 @@ type PCAShapeModel
     nlandmarks
     center
     maxtranslation
+    buf::Array{Float64,2}
 end
 
 function PCAShapeModelCoeffs(a::PCAShapeModel, x)
@@ -37,13 +38,13 @@ vec(a::PCAShapeModelCoeffs) = [a.modes; a.rot; a.scale; a.translation]
 include("plotfunctions.jl")
 
 function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.98, center = zeros(size(landmarks,1)), 
-    maxtranslation = Inf*ones(size(landmarks,1)), optcoeffs = false)
+    maxtranslation = realmax(Float32)*ones(size(landmarks,1)), optcoeffs = false)
     ndims, nlandmarks, nshapes = size(landmarks)
 
     aligned = copy(landmarks)
     scales = zeros(nshapes)
     aligned = @p map aligned x->x.-mean_(x)
-    scales = @p map aligned x->@p distance zeros(sizem(aligned),1) x 
+    scales = @p map aligned x->@p distance zeros(sizem(aligned),1) x | mean
     relativescales = scales ./ mean(scales)
 
     rotmatrices = Array(Any, nshapes)
@@ -63,7 +64,7 @@ function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.98, center
     aligned = reshape(aligned, (ndims*nlandmarks, nshapes))
 	pca = fit(PCA, aligned, pratio = percentage)
 
-    model = PCAShapeModel(alignedshapes, pca, ndims, nlandmarks, center, maxtranslation)
+    model = PCAShapeModel(alignedshapes, pca, ndims, nlandmarks, center, maxtranslation, zeros(ndims, nlandmarks))
 
     ## compute optimal coeffs for training data
     if optcoeffs
@@ -94,9 +95,7 @@ mincoeffvec(a::PCAShapeModel) = -maxcoeffvec(a)
 nmodes(a::PCAShapeModel) = outdim(a.pca) + (a.ndims==2 ? 4 : 6)
 
 
-function modeshapes(a::PCAShapeModel, ind, at::Vector = 
-    linspace(mincoeffvec(a)[ind], maxcoeffvec(a)[ind],10))
-
+function modeshapes(a::PCAShapeModel, ind, at = linspace(mincoeffvec(a)[ind], maxcoeffvec(a)[ind],10))
     assert(ind>0 && ind <= nmodes(a))
 	r = zeros(a.ndims, a.nlandmarks, length(at))
 	for i = 1:length(at)
@@ -117,10 +116,15 @@ function rotmatrix(scale, rotm, rotn, roto)
 end
 
 shape(a::PCAShapeModel, coeffs) = shape(a, PCAShapeModelCoeffs(a, coeffs))
-function shape(a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
+shape(a::PCAShapeModel, coeffs::PCAShapeModelCoeffs) = shape!(a.buf, a, coeffs)
+function shape!(buf, a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
     r = reconstruct(a.pca, coeffs.modes)
     r = reshape(a, r)
-    rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
+    buf[:] = rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
+end
+
+if VERSION.minor == 4
+    call(a::PCAShapeModel, coeffs) = shape(a, coeffs)
 end
 
 function coeffs{T<:Real}(a::PCAShapeModel, coords::Array{T,2})
@@ -134,9 +138,12 @@ function clamp{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
     error("write me")
 end
 
+examplelandmarks() = examplelandmarks(:hands2d)
 function examplelandmarks(a::Symbol)
     if a==:hands2d
-        return h5read(joinpath(Pkg.dir("ShapeModels"),"data/2Dlandmarks.hdf5"),"landmarks");
+        return h5read(joinpath(dirname(@__FILE__()),"../data/2Dlandmarks.hdf5"),"landmarks")
+    elseif a==:lungs
+        return dictread(joinpath(dirname(@__FILE__()),"../data/lungs.dictfile"))[:landmarks]
     else
         error("unknown dataset '$a'")
     end
@@ -150,7 +157,6 @@ function exampleimages(a::Symbol)
         error("unknown dataset '$a'")
     end
 end
-
 
 
 end # module

@@ -24,6 +24,7 @@ Example computed with outlines of metacarpal bones:
 
 * `model = PCAShapeModel(shapes)` compute a shape model
 * `nmodes(model)` get number of modes of the model, including rotation, scaling and translation
+* `modesstd(model)` get standard deviations of modes
 * `shape(model, coeffs)` compute a shape given a vector `coeffs` of `length(nmodes(a))`
 * `meanshape(model)` get the shape which represents the mean of all shapes
 * `modeshapes(model, mode)` get 10 shapes from -3std to 3std of mode number `mode`

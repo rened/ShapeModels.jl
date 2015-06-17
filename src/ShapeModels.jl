@@ -2,7 +2,7 @@ module ShapeModels
 
 using MultivariateStats, HDF5, FunctionalDataUtils, DictFiles
 
-export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec
+export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec, modesstd
 export axisij, plotshape, plotshapes
 export maxcoeffvec, mincoeffvec
 
@@ -23,6 +23,8 @@ type PCAShapeModel
     maxtranslation
     buf::Array{Float64,2}
 end
+
+modesstd(a::PCAShapeModel) = sqrt(principalvars(a.pca))
 
 function PCAShapeModelCoeffs(a::PCAShapeModel, x)
     if a.ndims == 2
@@ -86,7 +88,7 @@ reshape(a::PCAShapeModel, b) = reshape(b, a.ndims, a.nlandmarks)
 meanshape(a::PCAShapeModel) = shape(a, zeros(nmodes(a)))
 
 maxcoeffvec(a::PCAShapeModel) = vcat(
-    2.5*sqrt(principalvars(a.pca)), 
+    2.5*modesstd(a), 
     a.ndims == 2 ? 0.3 : [0.3, 0.3, 0.3],
     0.2,
     a.maxtranslation)

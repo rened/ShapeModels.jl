@@ -117,7 +117,12 @@ function rotmatrix(scale, rotm, rotn, roto)
     (scale+1)*Rm*Rn*Ro
 end
 
-shape(a::PCAShapeModel, coeffs) = shape(a, PCAShapeModelCoeffs(a, coeffs))
+function shape(a::PCAShapeModel, coeffs)
+    if sizem(coeffs) != nmodes(a) 
+        error("Cant create shape from coeffs, dimension mismatch. size(coeffs) == $(size(coeffs)), should be $(nmodes(a))")
+    end
+    shape(a, PCAShapeModelCoeffs(a, coeffs))
+end
 shape(a::PCAShapeModel, coeffs::PCAShapeModelCoeffs) = shape!(a.buf, a, coeffs)
 function shape!(buf, a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
     r = reconstruct(a.pca, coeffs.modes)

@@ -9,11 +9,14 @@ Currently, PCA based shape models are implemented, as introduced by Cootes et al
 Given a set of *shapes* of the form `ndim x nlandmarks x nshapes`, a PCA shape model is constructed using:
 
 ```jl
+using ShapeModels
+landmarks = ShapeModels.examplelandmarks(:hands2d)
+
 model = PCAShapeModel(landmarks)
 
-shapes = modeshapes(a,1)  # examples for first eigenmode
-[plotshape(shapes[:,:,i],"b.") for i = 1:10]
-plotshape(meanshape(a),"r.")
+shapes = modeshapes(model, 1)  # examples for first eigenmode
+[plotshape(shapes[:,:,i], "b.") for i = 1:10]
+plotshape(meanshape(model), "r.")
 ```
 
 Example computed with outlines of metacarpal bones:

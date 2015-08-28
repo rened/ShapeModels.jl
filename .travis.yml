@@ -5,8 +5,9 @@ os:
 julia:
   - release
   - nightly
+sudo: true
 notifications:
   email:
     - code@donner.at
 before_script:
-    julia -e "Pkg.add(\"PyCall\");Pkg.checkout(\"PyCall\")"
+    sudo apt-get install -y python-matplotlib

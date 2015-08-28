@@ -47,7 +47,7 @@ if isinstalled("PyPlot")
 			ploti = (m-1)*sn+n
 			if datai <= N
 				subplot(sm,sn,ploti)
-				plotshape(at(a,datai))
+				plotshape(at(a,round(Int,datai)))
 			end
 		end
 	end

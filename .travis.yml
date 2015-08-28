@@ -8,3 +8,5 @@ julia:
 notifications:
   email:
     - code@donner.at
+before_script:
+    julia -e "Pkg.checkout(\"PyCall\")"

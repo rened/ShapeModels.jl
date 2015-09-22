@@ -1,4 +1,4 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__()
+isdefined(:__precompile__) && __precompile__()
 
 module ShapeModels
 

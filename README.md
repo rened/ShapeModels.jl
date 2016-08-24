@@ -1,6 +1,9 @@
 # ShapeModels
 
 [![Build Status](https://travis-ci.org/rened/ShapeModels.jl.png)](https://travis-ci.org/rened/ShapeModels.jl)
+[![Build Status](http://pkg.julialang.org/badges/ShapeModels_0.4.svg)](http://pkg.julialang.org/?pkg=ShapeModels&ver=0.4)
+[![Build Status](http://pkg.julialang.org/badges/ShapeModels_0.5.svg)](http://pkg.julialang.org/?pkg=ShapeModels&ver=0.5)
+
 
 This package is meant to assemble methods for handling 2D and 3D statistical shape models, which are often used in medical computer vision.
 

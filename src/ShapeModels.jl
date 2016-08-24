@@ -1,4 +1,4 @@
-isdefined(:__precompile__) && __precompile__()
+__precompile__()
 
 module ShapeModels
 
@@ -132,8 +132,10 @@ function shape!(buf, a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
     buf[:] = rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
 end
 
-if VERSION.minor == 4
+@static if VERSION.minor == 4
     call(a::PCAShapeModel, coeffs) = shape(a, coeffs)
+else
+    (a::PCAShapeModel)(coeffs) = shape(a, coeffs)
 end
 
 function coeffs{T<:Real}(a::PCAShapeModel, coords::Array{T,2})

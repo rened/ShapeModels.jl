@@ -1,14 +1,18 @@
-__precompile__()
-
 module ShapeModels
 
-using MultivariateStats, HDF5, FunctionalDataUtils, DictFiles, Compat
+using FunctionalData
+using FunctionalDataUtils
+using HDF5
+using LinearAlgebra
+using MultivariateStats
+using Pkg
+using Statistics
 
 export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec, modesstd
 export axisij, plotshape, plotshapes
 export maxcoeffvec, mincoeffvec
 
-immutable PCAShapeModelCoeffs
+struct PCAShapeModelCoeffs
 	modes
 	rot
 	scale
@@ -16,7 +20,7 @@ immutable PCAShapeModelCoeffs
     ndims
 end
 
-type PCAShapeModel
+struct PCAShapeModel
 	aligned
 	pca
     ndims
@@ -26,7 +30,7 @@ type PCAShapeModel
     buf::Array{Float64,2}
 end
 
-modesstd(a::PCAShapeModel) = sqrt(principalvars(a.pca))
+modesstd(a::PCAShapeModel) = sqrt.(principalvars(a.pca))
 
 function PCAShapeModelCoeffs(a::PCAShapeModel, x)
     if a.ndims == 2
@@ -41,17 +45,22 @@ vec(a::PCAShapeModelCoeffs) = [a.modes; a.rot; a.scale; a.translation]
 
 include("plotfunctions.jl")
 
-function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.98, center = zeros(size(landmarks,1)), 
-    maxtranslation = realmax(Float32)*ones(size(landmarks,1)), optcoeffs = false)
+eye(a) = diagm(0 => ones(a))
+function PCAShapeModel(landmarks::Array{T,3};
+                       percentage = 0.98,
+                       center = zeros(size(landmarks,1)), 
+                       maxtranslation = typemax(Float32)*ones(size(landmarks,1)),
+                       optcoeffs = false) where T<:Real
+
     ndims, nlandmarks, nshapes = size(landmarks)
 
     aligned = copy(landmarks)
     scales = zeros(nshapes)
-    aligned = @p map aligned x->x.-mean_(x)
+    aligned = @p map aligned x->x .- mean(x, dims = 2)
     scales = @p map aligned x->@p distance zeros(sizem(aligned),1) x | mean
     relativescales = scales ./ mean(scales)
 
-    rotmatrices = Array(Any, nshapes)
+    rotmatrices = Array{Any}(undef, nshapes)
     rotmatrices[1] = eye(ndims)
     aligned[:,:,1] = aligned[:,:,1] ./= relativescales[1]
     for i = 2:nshapes
@@ -75,7 +84,7 @@ function PCAShapeModel{T<:Real}(landmarks::Array{T,3}; percentage = 0.98, center
         invrot = @p map rotmatrices inv
         angles = @p map invrot x->asin(x[2,1])
         modes  = @p transform pca aligned | unstack
-        translations = @p map landmarks mean_ | map minus center | unstack
+        translations = @p map landmarks (x->mean(x, dims = 2)) | map minus center | unstack
         coeffs = @p zip modes angles relativescales-1 translations| collect | map x->PCAShapeModelCoeffs(x[1], x[2], x[3], x[4], ndims)
         model, coeffs
     else
@@ -99,8 +108,8 @@ mincoeffvec(a::PCAShapeModel) = -maxcoeffvec(a)
 nmodes(a::PCAShapeModel) = outdim(a.pca) + (a.ndims==2 ? 4 : 6)
 
 
-function modeshapes(a::PCAShapeModel, ind, at = linspace(mincoeffvec(a)[ind], maxcoeffvec(a)[ind],10))
-    assert(ind>0 && ind <= nmodes(a))
+function modeshapes(a::PCAShapeModel, ind, at = range(mincoeffvec(a)[ind], stop = maxcoeffvec(a)[ind], length = 10))
+    @assert ind>0 && ind <= nmodes(a)
 	r = zeros(a.ndims, a.nlandmarks, length(at))
 	for i = 1:length(at)
     	v = zeros(nmodes(a))
@@ -132,19 +141,19 @@ function shape!(buf, a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
     buf[:] = rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
 end
 
-@static if VERSION.minor == 4
+@static if VERSION < v"0.5-"
     call(a::PCAShapeModel, coeffs) = shape(a, coeffs)
 else
     (a::PCAShapeModel)(coeffs) = shape(a, coeffs)
 end
 
-function coeffs{T<:Real}(a::PCAShapeModel, coords::Array{T,2})
+function coeffs(a::PCAShapeModel, coords::Array{T,2}) where T<:Real
     # TODO
 end
 
 import Base.clamp
 clamp(a::PCAShapeModel, coeffs::Vector) = clamp(a, col(coeffs))
-function clamp{T<:Real}(a::PCAShapeModel, coeffs::Array{T,2})
+function clamp(a::PCAShapeModel, coeffs::Array{T,2}) where T<:Real
     # TODO
     error("write me")
 end

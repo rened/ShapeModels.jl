@@ -1,5 +1,3 @@
-isinstalled(a) = isa(Pkg.installed(a), VersionNumber)
-if isinstalled("PyPlot")
 	using PyPlot
 
     function axisij() 
@@ -51,6 +49,4 @@ if isinstalled("PyPlot")
 			end
 		end
 	end
-
-end
 

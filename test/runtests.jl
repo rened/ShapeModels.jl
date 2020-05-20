@@ -1,41 +1,42 @@
 println("Running runtests.jl ...")
-using ShapeModels, MultivariateStats, FactCheck, HDF5
-FactCheck.setstyle(:compact)
+push!(LOAD_PATH, "..")
 
-shouldtest(f, a) = length(ARGS) == 0 || in(a, ARGS) ? facts(f, a) : nothing
-shouldtestcontext(f, a) = length(ARGS) < 2 || a == ARGS[2] ? context(f, a) : nothing
- 
-macro throws_pred(ex) FactCheck.throws_pred(ex) end
+using FunctionalData
+using HDF5
+using MultivariateStats
+using ShapeModels
+using Statistics
+using Test
+
+macro shouldtestset(a,b) length(ARGS) < 1 || ARGS[1] == a ?  :(@testset $a $b) : nothing end
+macro shouldtestset2(a,b) length(ARGS) < 2 || ARGS[2] == a ?  :(@testset $a $b) : nothing end
 
 landmarks = ShapeModels.examplelandmarks()
 
-shouldtest("basic") do
+@shouldtestset "basic" begin
 	a = PCAShapeModel(landmarks)
-	@fact size(projection(a.pca)) --> (256,8)
-	@fact size(principalvars(a.pca)) --> (8,)
-	@fact indim(a.pca) --> 256
-	@fact outdim(a.pca) --> 8
+	@test size(projection(a.pca)) == (256,8)
+	@test size(principalvars(a.pca)) == (8,)
+	@test indim(a.pca) == 256
+	@test outdim(a.pca) == 8
 end
 
-shouldtest("utils") do
+@shouldtestset "utils" begin
 	a = PCAShapeModel(landmarks)
 	m = meanshape(a)
-	@fact size(m) --> (2,128)
-	@fact maximum(abs(mean(m,2))) --> less_than(1e-6)
+	@test size(m) == (2,128)
+	@test maximum(abs.(mean(m, dims = 2)))  < 1e-6
 end
 
-shouldtest("shape") do
+@shouldtestset "shape" begin
 	a = PCAShapeModel(landmarks)
 
-    @fact size(shape(a, zeros(nmodes(a)))) --> (2,128)
-    if VERSION.minor == 4
-        @fact size(a(zeros(nmodes(a)))) --> (2,128)
-    end
+    @test size(shape(a, zeros(nmodes(a)))) == (2,128)
 end
 
-shouldtest("modes") do
+@shouldtestset "modes" begin
 	a = PCAShapeModel(landmarks)
-	@fact size(modeshapes(a, 1)) --> (2,128,10)
+	@test size(modeshapes(a, 1)) == (2,128,10)
 end
 
 

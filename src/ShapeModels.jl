@@ -6,6 +6,7 @@ using HDF5
 using LinearAlgebra
 using MultivariateStats
 using Pkg
+using Plots
 using Statistics
 
 export PCAShapeModel, shape, coeffs, clamp, meanshape, modeshapes, nmodes, vec, modesstd
@@ -41,9 +42,6 @@ function PCAShapeModelCoeffs(a::PCAShapeModel, x)
 end
 import Base.vec
 vec(a::PCAShapeModelCoeffs) = [a.modes; a.rot; a.scale; a.translation]
-
-
-include("plotfunctions.jl")
 
 eye(a) = diagm(0 => ones(a))
 function PCAShapeModel(landmarks::Array{T,3};
@@ -141,11 +139,7 @@ function shape!(buf, a::PCAShapeModel, coeffs::PCAShapeModelCoeffs)
     buf[:] = rotmatrix(coeffs)*r .+ coeffs.translation .+ a.center
 end
 
-@static if VERSION < v"0.5-"
-    call(a::PCAShapeModel, coeffs) = shape(a, coeffs)
-else
-    (a::PCAShapeModel)(coeffs) = shape(a, coeffs)
-end
+(a::PCAShapeModel)(coeffs) = shape(a, coeffs)
 
 function coeffs(a::PCAShapeModel, coords::Array{T,2}) where T<:Real
     # TODO
@@ -178,5 +172,55 @@ function exampleimages(a::Symbol)
     end
 end
 
+
+function axisij() 
+    a = axis() 
+    axis((a[1],a[2],a[4],a[3]))
+end
+
+function plotshape(a, args...; kargs...)
+    if size(a,1)==2
+        plot(vec(a[2,:]), vec(a[1,:]), args...; kargs...)
+        # axisij()
+        # xlabel("N")
+        # ylabel("M")
+    elseif size(a,1)==3
+        plot3d(vec(a[1,:]), vec(a[2,:]), vec(a[3,:]), args...; kargs...)
+        # xlabel("M")
+        # ylabel("N")
+        # zlabel("O")
+    else
+        error("Can't plot data of size $(size(a))")
+    end
+    # axis("equal")
+end
+
+function plotshapes(a)
+    if size(a,1)==3
+        for i = 1:last(size(a))
+            plotshape(a[:,:,i])
+            hold(true)
+        end
+        hold(false)
+    else
+        gridplot(a)
+    end
+end
+
+at(a,i) = slicedim(a,ndims(a),i)
+
+function gridplot(a)
+    N = last(size(a))
+    sm = floor(sqrt(N))
+    sn = ceil(N/sm)
+    for m = 1:sm, n = 1:sn
+        datai = (n-1)*sm+m
+        ploti = (m-1)*sn+n
+        if datai <= N
+            subplot(sm,sn,ploti)
+            plotshape(at(a,round(Int,datai)))
+        end
+    end
+end
 
 end # module

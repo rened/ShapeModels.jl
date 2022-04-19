@@ -18,8 +18,8 @@ landmarks = ShapeModels.examplelandmarks(:hands2d)
 model = PCAShapeModel(landmarks)
 
 shapes = modeshapes(model, 1)  # examples for first eigenmode
-[plotshape(shapes[:,:,i], "b.") for i = 1:10]
-plotshape(meanshape(model), "r.")
+[plot!(shapes[2,:, i], shapes[1,:, i], color=:lightgrey, aspectratio=:equal, label=string(i)) for i = 1:10]
+plot!(meanmodel[2,:], meanmodel[1,:], color=:red, aspectratio=:equal, label="mean")
 ```
 
 Example computed with outlines of metacarpal bones:

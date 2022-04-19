@@ -1,7 +1,5 @@
 module ShapeModels
 
-using FunctionalData
-using FunctionalDataUtils
 using HDF5
 using LinearAlgebra
 using MultivariateStats
@@ -54,18 +52,18 @@ function PCAShapeModel(landmarks::Array{T,3};
 
     aligned = copy(landmarks)
     scales = zeros(nshapes)
-    aligned = @p map aligned x->x .- mean(x, dims = 2)
-    scales = @p map aligned x->@p distance zeros(sizem(aligned),1) x | mean
+    aligned = aligned .- mean(aligned, dims = 2)
+    scales = mean(mapslices(norm, aligned, dims=1), dims=(1,2))[1,1,:]
     relativescales = scales ./ mean(scales)
 
     rotmatrices = Array{Any}(undef, nshapes)
-    rotmatrices[1] = eye(ndims)
+    rotmatrices[1] = I(ndims)
     aligned[:,:,1] = aligned[:,:,1] ./= relativescales[1]
     for i = 2:nshapes
         aligned[:,:,i] ./= relativescales[i]
         # https://en.wikipedia.org/wiki/Kabsch_algorithm
         U,E,V = svd(aligned[:,:,1] * aligned[:,:,i]')
-        Eprime = eye(length(E))
+        Eprime = I(length(E))
         Eprime[end] = sign(det(U*V))
         rotmatrices[i] = V' * Eprime' * U
         aligned[:,:,i] = rotmatrices[i] * aligned[:,:,i]
@@ -79,11 +77,12 @@ function PCAShapeModel(landmarks::Array{T,3};
 
     ## compute optimal coeffs for training data
     if optcoeffs
-        invrot = @p map rotmatrices inv
-        angles = @p map invrot x->asin(x[2,1])
-        modes  = @p transform pca aligned | unstack
-        translations = @p map landmarks (x->mean(x, dims = 2)) | map minus center | unstack
-        coeffs = @p zip modes angles relativescales-1 translations| collect | map x->PCAShapeModelCoeffs(x[1], x[2], x[3], x[4], ndims)
+        invrot = inv.(rotmatrices)
+        angles = map(x->asin(x[2,1]), invrot)
+        modes  = unstack(transform(pca, aligned))
+        translations = unstack(mean(landmarks, dims = 2) .- center)
+        input = collect(zip(modes, angles, relativescales.-1, translations))
+        coeffs = map(x->PCAShapeModelCoeffs(x[1], x[2], x[3], x[4], ndims), input)
         model, coeffs
     else
         model
@@ -93,6 +92,7 @@ end
 import Base.reshape
 col(a) = reshape(a, length(a),1)
 row(a) = reshape(a, 1, length(a))
+unstack(a) = Any[at(a,i) for i in 1:len(a)]
 reshape(a::PCAShapeModel, b) = reshape(b, a.ndims, a.nlandmarks)
 meanshape(a::PCAShapeModel) = shape(a, zeros(nmodes(a)))
 
@@ -103,7 +103,7 @@ maxcoeffvec(a::PCAShapeModel) = vcat(
     a.maxtranslation)
 mincoeffvec(a::PCAShapeModel) = -maxcoeffvec(a)
 
-nmodes(a::PCAShapeModel) = outdim(a.pca) + (a.ndims==2 ? 4 : 6)
+nmodes(a::PCAShapeModel) = size(a.pca, 2) + (a.ndims==2 ? 4 : 6)
 
 
 function modeshapes(a::PCAShapeModel, ind, at = range(mincoeffvec(a)[ind], stop = maxcoeffvec(a)[ind], length = 10))
@@ -127,8 +127,8 @@ function rotmatrix(scale, rotm, rotn, roto)
 end
 
 function shape(a::PCAShapeModel, coeffs)
-    if sizem(coeffs) != nmodes(a) 
-        error("Cant create shape from coeffs, dimension mismatch. size(coeffs) == $(size(coeffs)), should be $(nmodes(a))")
+    if size(coeffs) != (nmodes(a),) 
+        error("Cant create shape from coeffs, dimension mismatch. size(coeffs) == $(size(coeffs)), should be ($(nmodes(a)),)")
     end
     shape(a, PCAShapeModelCoeffs(a, coeffs))
 end

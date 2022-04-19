@@ -1,7 +1,6 @@
 println("Running runtests.jl ...")
 push!(LOAD_PATH, "..")
 
-using FunctionalData
 using HDF5
 using MultivariateStats
 using ShapeModels
@@ -17,8 +16,8 @@ landmarks = ShapeModels.examplelandmarks()
 	a = PCAShapeModel(landmarks)
 	@test size(projection(a.pca)) == (256,8)
 	@test size(principalvars(a.pca)) == (8,)
-	@test indim(a.pca) == 256
-	@test outdim(a.pca) == 8
+	@test size(a.pca, 1) == 256
+	@test size(a.pca, 2) == 8
 end
 
 @shouldtestset "utils" begin

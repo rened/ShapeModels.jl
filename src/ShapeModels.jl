@@ -103,7 +103,7 @@ maxcoeffvec(a::PCAShapeModel) = vcat(
     a.maxtranslation)
 mincoeffvec(a::PCAShapeModel) = -maxcoeffvec(a)
 
-nmodes(a::PCAShapeModel) = outdim(a.pca) + (a.ndims==2 ? 4 : 6)
+nmodes(a::PCAShapeModel) = size(a.pca, 2) + (a.ndims==2 ? 4 : 6)
 
 
 function modeshapes(a::PCAShapeModel, ind, at = range(mincoeffvec(a)[ind], stop = maxcoeffvec(a)[ind], length = 10))
